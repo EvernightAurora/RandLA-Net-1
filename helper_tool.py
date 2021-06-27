@@ -1,4 +1,4 @@
-from open3d import linux as open3d
+import open3d
 from os.path import join
 import numpy as np
 import colorsys, random, os, sys
@@ -38,7 +38,26 @@ class ConfigSemanticKITTI:
     train_sum_dir = 'train_log'
     saving = True
     saving_path = None
-
+    SEM_COLOR = np.array([
+        [0, 0, 0],         # 0: "unlabeled"
+        [255, 30, 30],     # 4: "1 person"
+        [255, 30, 30],     # 5: "2+ person"
+        [255, 40, 200],    # 6: "rider"
+        [100, 150, 245],   # 7: "car"
+        [135,60,0],        # 8: "trunk"
+        [20, 165, 20],     # 9: "plants"
+        [255, 0, 0],       # 10: "traffic sign 1"
+        [255, 0, 0],       # 11: "traffic sign 2"
+        [255, 0, 0],       # 12: "traffic sign 3"
+        [255, 240, 150],   # 13: "pole"
+        [125, 255, 0],     # 14: "trashcan"
+        [255, 200, 0],     # 15: "building"
+        [50, 255, 255],    # 16: "cone/stone"
+        [255, 120, 50],    # 17: "fence"
+        [100, 230, 245],   # 21: "bike"
+        [128, 128, 128]],  # 22: "ground"
+        dtype=np.uint8
+    )
 
 class ConfigS3DIS:
     k_n = 16  # KNN
@@ -262,44 +281,57 @@ class DataProcessing:
 
 
 class Plot:
+    def __init__(self):
+        v = open3d.visualization.Visualizer()
+        v.create_window()
+        self.v = v
+        self.ctl = v.get_view_control()
+        self.i = 0
+        
+        self.param = open3d.io.read_pinhole_camera_parameters("camera_params.json")
+    
+    def __del__(self):
+        self.v.destroy_window()
+
     @staticmethod
     def random_colors(N, bright=True, seed=0):
-        brightness = 1.0 if bright else 0.7
-        hsv = [(0.15 + i / float(N), 1, brightness) for i in range(N)]
-        colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+        brightness = 0.95 if bright else 0.7
+        hsv = [(0.15 + i / float(N), 0.8, brightness) for i in range(N)]
+        colors = [colorsys.hsv_to_rgb(*c) for c in hsv]
         random.seed(seed)
         random.shuffle(colors)
         return colors
 
-    @staticmethod
-    def draw_pc(pc_xyzrgb):
-        pc = open3d.PointCloud()
-        pc.points = open3d.Vector3dVector(pc_xyzrgb[:, 0:3])
+    def draw_pc(self, pc_xyzrgb):
+        points = open3d.utility.Vector3dVector(pc_xyzrgb[:, 0:3])
+        pc = open3d.geometry.PointCloud(points)
         if pc_xyzrgb.shape[1] == 3:
             open3d.draw_geometries([pc])
-            return 0
         if np.max(pc_xyzrgb[:, 3:6]) > 20:  ## 0-255
-            pc.colors = open3d.Vector3dVector(pc_xyzrgb[:, 3:6] / 255.)
+            pc.colors = open3d.utility.Vector3dVector(pc_xyzrgb[:, 3:6] / 255.)
         else:
-            pc.colors = open3d.Vector3dVector(pc_xyzrgb[:, 3:6])
-        open3d.draw_geometries([pc])
-        return 0
+            pc.colors = open3d.utility.Vector3dVector(pc_xyzrgb[:, 3:6])
+        v = self.v
+        v.clear_geometries()
+        v.add_geometry(pc)
+        self.ctl.convert_from_pinhole_camera_parameters(self.param)
+        v.poll_events()
+        v.update_renderer()
+        # v.run()
+        v.capture_screen_image('imgs/{:04d}.png'.format(self.i))
+        self.i += 1
 
-    @staticmethod
-    def draw_pc_sem_ins(pc_xyz, pc_sem_ins, plot_colors=None):
+    def draw_pc_sem_ins(self, pc_xyz, pc_sem_ins, plot_colors=None):
         """
         pc_xyz: 3D coordinates of point clouds
         pc_sem_ins: semantic or instance labels
         plot_colors: custom color list
         """
-        if plot_colors is not None:
-            ins_colors = plot_colors
-        else:
-            ins_colors = Plot.random_colors(len(np.unique(pc_sem_ins)) + 1, seed=2)
+        ins_colors = Plot.random_colors(len(np.unique(pc_sem_ins)) + 1, seed=2)
 
         ##############################
         sem_ins_labels = np.unique(pc_sem_ins)
-        sem_ins_bbox = []
+        # sem_ins_bbox = []
         Y_colors = np.zeros((pc_sem_ins.shape[0], 3))
         for id, semins in enumerate(sem_ins_labels):
             valid_ind = np.argwhere(pc_sem_ins == semins)[:, 0]
@@ -307,24 +339,24 @@ class Plot:
                 tp = [0, 0, 0]
             else:
                 if plot_colors is not None:
-                    tp = ins_colors[semins]
+                    tp = plot_colors[semins]
                 else:
                     tp = ins_colors[id]
 
             Y_colors[valid_ind] = tp
 
             ### bbox
-            valid_xyz = pc_xyz[valid_ind]
+            # valid_xyz = pc_xyz[valid_ind]
 
-            xmin = np.min(valid_xyz[:, 0])
-            xmax = np.max(valid_xyz[:, 0])
-            ymin = np.min(valid_xyz[:, 1])
-            ymax = np.max(valid_xyz[:, 1])
-            zmin = np.min(valid_xyz[:, 2])
-            zmax = np.max(valid_xyz[:, 2])
-            sem_ins_bbox.append(
-                [[xmin, ymin, zmin], [xmax, ymax, zmax], [min(tp[0], 1.), min(tp[1], 1.), min(tp[2], 1.)]])
+            # xmin = np.min(valid_xyz[:, 0])
+            # xmax = np.max(valid_xyz[:, 0])
+            # ymin = np.min(valid_xyz[:, 1])
+            # ymax = np.max(valid_xyz[:, 1])
+            # zmin = np.min(valid_xyz[:, 2])
+            # zmax = np.max(valid_xyz[:, 2])
+            # sem_ins_bbox.append(
+                # [[xmin, ymin, zmin], [xmax, ymax, zmax], [min(tp[0], 1.), min(tp[1], 1.), min(tp[2], 1.)]])
 
         Y_semins = np.concatenate([pc_xyz[:, 0:3], Y_colors], axis=-1)
-        Plot.draw_pc(Y_semins)
+        self.draw_pc(Y_semins)
         return Y_semins

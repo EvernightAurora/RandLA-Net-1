@@ -207,9 +207,11 @@ class Network:
         print('finished')
         self.sess.close()
 
-    def evaluate(self, dataset):
+    def evaluate(self, dataset, plot, snap):
 
         # Initialise iterator with validation data
+        self.saver.restore(self.sess, snap)
+        print("Model restored from " + snap)
         self.sess.run(dataset.val_init_op)
 
         gt_classes = [0 for _ in range(self.config.num_classes)]
@@ -218,11 +220,12 @@ class Network:
         val_total_correct = 0
         val_total_seen = 0
 
-        for _ in tqdm(range(self.config.val_steps)):
+        while True:
             try:
-                ops = (self.prob_logits, self.labels, self.accuracy)
-                stacked_prob, labels, acc = self.sess.run(ops, {self.is_training: False})
+                ops = (dataset.flat_inputs, self.prob_logits, self.labels)
+                flat_inputs, stacked_prob, labels = self.sess.run(ops, {self.is_training: False})
                 pred = np.argmax(stacked_prob, 1)
+                pc_xyz = flat_inputs[0]
                 if not self.config.ignored_label_inds:
                     pred_valid = pred
                     labels_valid = labels
@@ -232,7 +235,20 @@ class Network:
                     labels_valid = labels_valid - 1
                     pred_valid = np.delete(pred, invalid_idx)
 
+                # print('stacked_prob', stacked_prob.shape)
+                # print('pc_xyz', pc_xyz.shape)
+                # print('sub_pc_xyz', sub_pc_xyz.shape)
+                # print('pred', pred.shape)
+                # print('pred_valid', pred_valid.shape)
+                # print('labels', labels.shape)
+                # print('labels_valid', labels_valid.shape)
+                pred = np.reshape(pred + 1, (-1, self.config.num_points))
+                labels = np.reshape(labels, (-1, self.config.num_points))
+                for i in range(np.shape(pc_xyz)[0]):
+                    # plot.draw_pc_sem_ins(pc_xyz[i,:], pred[i,:], self.config.SEM_COLOR)
+                    plot.draw_pc_sem_ins(pc_xyz[i,:], labels[i,:], self.config.SEM_COLOR)
                 correct = np.sum(pred_valid == labels_valid)
+                print(correct, correct / len(pred_valid), sep='\t')
                 val_total_correct += correct
                 val_total_seen += len(labels_valid)
 
