@@ -2,6 +2,7 @@ import pickle, yaml, os, sys
 import numpy as np
 from os.path import join, exists, dirname, abspath
 from sklearn.neighbors import KDTree
+from tqdm import tqdm
 
 BASE_DIR = dirname(abspath(__file__))
 ROOT_DIR = dirname(BASE_DIR)
@@ -13,14 +14,15 @@ data_config = os.path.join(BASE_DIR, 'semantic-kitti.yaml')
 DATA = yaml.safe_load(open(data_config, 'r'))
 remap_dict = DATA["learning_map"]
 max_key = max(remap_dict.keys())
-remap_lut = np.zeros((max_key + 100), dtype=np.int32)
+remap_lut = np.zeros((max_key + 100), dtype=np.int32) - 1
 remap_lut[list(remap_dict.keys())] = list(remap_dict.values())
 
 grid_size = 0.06
-dataset_path = '/data/semantic_kitti/dataset/sequences'
-output_path = '/data/semantic_kitti/dataset/sequences' + '_' + str(grid_size)
-seq_list = np.sort(os.listdir(dataset_path))
+dataset_path = r'/home/lur/桌面/sequences'
+output_path = r'/home/lur/桌面/sequences' + '_' + str(grid_size)
 
+
+seq_list = np.sort(os.listdir(dataset_path))
 for seq_id in seq_list:
     print('sequence' + seq_id + ' start')
     seq_path = join(dataset_path, seq_id)
@@ -32,30 +34,40 @@ for seq_id in seq_list:
     os.makedirs(pc_path_out) if not exists(pc_path_out) else None
     os.makedirs(KDTree_path_out) if not exists(KDTree_path_out) else None
 
-    if int(seq_id) < 11:
-        label_path = join(seq_path, 'labels')
-        label_path_out = join(seq_path_out, 'labels')
-        os.makedirs(label_path_out) if not exists(label_path_out) else None
-        scan_list = np.sort(os.listdir(pc_path))
-        for scan_id in scan_list:
-            print(scan_id)
-            points = DP.load_pc_kitti(join(pc_path, scan_id))
-            labels = DP.load_label_kitti(join(label_path, str(scan_id[:-4]) + '.label'), remap_lut)
-            sub_points, sub_labels = DP.grid_sub_sampling(points, labels=labels, grid_size=grid_size)
-            search_tree = KDTree(sub_points)
-            KDTree_save = join(KDTree_path_out, str(scan_id[:-4]) + '.pkl')
-            np.save(join(pc_path_out, scan_id)[:-4], sub_points)
-            np.save(join(label_path_out, scan_id)[:-4], sub_labels)
-            with open(KDTree_save, 'wb') as f:
-                pickle.dump(search_tree, f)
-            if seq_id == '08':
-                proj_path = join(seq_path_out, 'proj')
-                os.makedirs(proj_path) if not exists(proj_path) else None
-                proj_inds = np.squeeze(search_tree.query(points, return_distance=False))
-                proj_inds = proj_inds.astype(np.int32)
-                proj_save = join(proj_path, str(scan_id[:-4]) + '_proj.pkl')
-                with open(proj_save, 'wb') as f:
-                    pickle.dump([proj_inds], f)
+    label_path = join(seq_path, 'labels')
+    label_path_out = join(seq_path_out, 'labels')
+    os.makedirs(label_path_out) if not exists(label_path_out) else None
+    scan_list = np.sort(os.listdir(pc_path))
+
+    for scan_id in scan_list:
+        print(scan_id)
+        points = DP.load_pc_kitti(join(pc_path, scan_id))
+        labels = DP.load_label_kitti(join(label_path, str(scan_id[:-4]) + '.label'), remap_lut)
+        try:
+            bc = np.bincount(labels)
+            if bc[1] or bc[2]:
+                print("have person and bicyclist, skip")
+                continue
+        except:
+            print("Out of Dict")
+
+        sub_points, sub_labels = DP.grid_sub_sampling(points, labels=labels, grid_size=grid_size)
+        search_tree = KDTree(sub_points)
+        KDTree_save = join(KDTree_path_out, str(scan_id[:-4]) + '.pkl')
+        np.save(join(pc_path_out, scan_id)[:-4], sub_points)
+        np.save(join(label_path_out, scan_id)[:-4], sub_labels)
+        with open(KDTree_save, 'wb') as f:
+            pickle.dump(search_tree, f)
+''' 
+       if seq_id == '08':
+            proj_path = join(seq_path_out, 'proj')
+            os.makedirs(proj_path) if not exists(proj_path) else None
+            proj_inds = np.squeeze(search_tree.query(points, return_distance=False))
+            proj_inds = proj_inds.astype(np.int32)
+            proj_save = join(proj_path, str(scan_id[:-4]) + '_proj.pkl')
+            with open(proj_save, 'wb') as f:
+                pickle.dump([proj_inds], f)
+        
     else:
         proj_path = join(seq_path_out, 'proj')
         os.makedirs(proj_path) if not exists(proj_path) else None
@@ -74,3 +86,4 @@ for seq_id in seq_list:
                 pickle.dump(search_tree, f)
             with open(proj_save, 'wb') as f:
                 pickle.dump([proj_inds], f)
+'''
