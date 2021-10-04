@@ -3,7 +3,7 @@ import numpy as np
 from os.path import join, exists, dirname, abspath
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
-
+# todo: al eva
 BASE_DIR = dirname(abspath(__file__))
 ROOT_DIR = dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
@@ -21,7 +21,7 @@ grid_size = 0.06
 dataset_path = r'/home/lur/桌面/sequences'
 output_path = r'/home/lur/桌面/sequences' + '_' + str(grid_size)
 
-
+# seq_list = np.sort(["00","01","02","03","04","05","06","07","08"])
 seq_list = np.sort(os.listdir(dataset_path))
 for seq_id in seq_list:
     print('sequence' + seq_id + ' start')
