@@ -20,7 +20,7 @@ remap_lut[list(remap_dict.keys())] = list(remap_dict.values())
 grid_size = 0.06
 dataset_path = r'/home/lur/桌面/sequences'
 output_path = r'/home/lur/桌面/sequences' + '_' + str(grid_size)
-
+Counter = 0
 # seq_list = np.sort(["00","01","02","03","04","05","06","07","08"])
 seq_list = np.sort(os.listdir(dataset_path))
 for seq_id in seq_list:
@@ -58,6 +58,10 @@ for seq_id in seq_list:
         np.save(join(label_path_out, scan_id)[:-4], sub_labels)
         with open(KDTree_save, 'wb') as f:
             pickle.dump(search_tree, f)
+        Counter += 1
+with open(join(output_path, 'Counter.txt')) as f:
+    f.write(str(Counter))
+print("Finished " + str(Counter))
 ''' 
        if seq_id == '08':
             proj_path = join(seq_path_out, 'proj')

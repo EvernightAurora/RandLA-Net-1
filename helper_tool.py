@@ -1,7 +1,7 @@
-from open3d import linux as open3d
+#from open3d import linux as open3d
 from os.path import join
 import numpy as np
-import colorsys, random, os, sys
+#import colorsys, random, os, sys		#I dont need to Plot at least now
 import pandas as pd
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -260,7 +260,7 @@ class DataProcessing:
         ce_label_weight = 1 / (weight + 0.02)
         return np.expand_dims(ce_label_weight, axis=0)
 
-
+'''
 class Plot:
     @staticmethod
     def random_colors(N, bright=True, seed=0):
@@ -328,3 +328,4 @@ class Plot:
         Y_semins = np.concatenate([pc_xyz[:, 0:3], Y_colors], axis=-1)
         Plot.draw_pc(Y_semins)
         return Y_semins
+'''
