@@ -1,7 +1,8 @@
-#from open3d import linux as open3d
+# from open3d import linux as open3d
 from os.path import join
 import numpy as np
-#import colorsys, random, os, sys		#I dont need to Plot at least now
+# import colorsys 		#I dont need to Plot at least now
+import os, sys
 import pandas as pd
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'

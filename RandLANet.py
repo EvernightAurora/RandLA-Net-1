@@ -2,13 +2,15 @@ from os.path import exists, join
 from os import makedirs
 from sklearn.metrics import confusion_matrix
 from helper_tool import DataProcessing as DP
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import numpy as np
 import helper_tf_util
 import time
 from tqdm import tqdm
 
 if tf.__version__[0] == '2':
+    del tf
+    import tensorflow.compat.v1 as tf
     from tensorflow.compat.v1 import ConfigProto
     from tensorflow.compat.v1 import InteractiveSession
     config = ConfigProto()

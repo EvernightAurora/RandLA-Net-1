@@ -1,36 +1,36 @@
 from helper_tool import DataProcessing as DP
 from helper_tool import ConfigSemanticKITTI as cfg
-from helper_tool import Plot
+# from helper_tool import Plot
 from os.path import join
 from RandLANet import Network
 from tester_SemanticKITTI import ModelTester
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
+
+
 import numpy as np
 import os, argparse, pickle
 if tf.__version__[0] == '2':
+    del tf
+    import tensorflow.compat.v1 as tf
     tf.disable_v2_behavior()
+
 
 class SemanticKITTI:
     def __init__(self, test_id):
         self.name = 'SemanticKITTI'
         self.dataset_path = '/data/semantic_kitti/dataset/sequences_0.12'
         self.label_to_names = {0: 'unlabeled',
-                               1: '1 person',
-                               2: '2+ person',
-                               3: 'rider',
-                               4: 'car',
+                               1: 'untrained person',
+                               2: 'untrained cyclist',
+                               3: 'vehicle',
+                               4: 'traffic-sign',
                                5: 'trunk',
-                               6: 'plants',
-                               7: 'traffic sign 1',
-                               8: 'traffic sign 2',
-                               9: 'traffic sign 3',
-                               10: 'pole',
-                               11: 'trashcan',
-                               12: 'building',
-                               13: 'cone/stone',
-                               14: 'fence',
-                               15: 'bike',
-                               16: 'ground'}
+                               6: 'vegetation',
+                               7: 'pole',
+                               8: 'fence',
+                               9: 'building',
+                               10: 'cycle',
+                               11: 'ground'}
         self.num_classes = len(self.label_to_names)
         self.label_values = np.sort([i for i in self.label_to_names.keys()])
         self.label_to_idx = {l: i for i, l in enumerate(self.label_values)}
@@ -90,10 +90,10 @@ class SemanticKITTI:
                     self.min_possibility[cloud_ind] = np.min(self.possibility[cloud_ind])
 
                 if True:
-                    yield (selected_pc.astype(np.float32),
-                           selected_labels.astype(np.int32),
-                           selected_idx.astype(np.int32),
-                           np.array([cloud_ind], dtype=np.int32))
+                    yield (selected_pc.astype(np.float32),              # int in a area
+                           selected_labels.astype(np.int32),            # Label of Point
+                           selected_idx.astype(np.int32),               # the idx of choose points
+                           np.array([cloud_ind], dtype=np.int32))       # file number
 
         gen_func = spatially_regular_gen
         gen_types = (tf.float32, tf.int32, tf.int32, tf.int32)
@@ -140,10 +140,10 @@ class SemanticKITTI:
                 sub_points = batch_pc[:, :tf.shape(batch_pc)[1] // cfg.sub_sampling_ratio[i], :]
                 pool_i = neighbour_idx[:, :tf.shape(batch_pc)[1] // cfg.sub_sampling_ratio[i], :]
                 up_i = tf.py_func(DP.knn_search, [sub_points, batch_pc, 1], tf.int32)
-                input_points.append(batch_pc)
-                input_neighbors.append(neighbour_idx)
-                input_pools.append(pool_i)
-                input_up_samples.append(up_i)
+                input_points.append(batch_pc)                           # Point [bpc,bpc/4,bpc/16,bpc/64, bpc/256]
+                input_neighbors.append(neighbour_idx)                   # knn( Point[i] from Point[i], k)
+                input_pools.append(pool_i)                              # knn( Point[i+1] from Point[i],k)
+                input_up_samples.append(up_i)                           # knn( Point[i] from Point[i+1], 1)
                 batch_pc = sub_points
 
             input_list = input_points + input_neighbors + input_pools + input_up_samples
@@ -225,7 +225,7 @@ if __name__ == '__main__':
         ##################
         # Visualize data #
         ##################
-
+        '''
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             sess.run(dataset.train_init_op)
@@ -236,3 +236,4 @@ if __name__ == '__main__':
                 labels = flat_inputs[17]
                 Plot.draw_pc_sem_ins(pc_xyz[0, :, :], labels[0, :])
                 Plot.draw_pc_sem_ins(sub_pc_xyz[0, :, :], labels[0, 0:np.shape(sub_pc_xyz)[1]])
+        '''

@@ -33,7 +33,7 @@ for seq_id in seq_list:
     os.makedirs(seq_path_out) if not exists(seq_path_out) else None
     os.makedirs(pc_path_out) if not exists(pc_path_out) else None
     os.makedirs(KDTree_path_out) if not exists(KDTree_path_out) else None
-
+    # if int(seq_id) < 11:
     label_path = join(seq_path, 'labels')
     label_path_out = join(seq_path_out, 'labels')
     os.makedirs(label_path_out) if not exists(label_path_out) else None
@@ -59,11 +59,11 @@ for seq_id in seq_list:
         with open(KDTree_save, 'wb') as f:
             pickle.dump(search_tree, f)
         Counter += 1
-with open(join(output_path, 'Counter.txt')) as f:
+with open(join(output_path, 'Counter.txt'), 'wt') as f:
     f.write(str(Counter))
 print("Finished " + str(Counter))
 ''' 
-       if seq_id == '08':
+       if seq_id == '08':                                   #Val
             proj_path = join(seq_path_out, 'proj')
             os.makedirs(proj_path) if not exists(proj_path) else None
             proj_inds = np.squeeze(search_tree.query(points, return_distance=False))
@@ -72,7 +72,7 @@ print("Finished " + str(Counter))
             with open(proj_save, 'wb') as f:
                 pickle.dump([proj_inds], f)
         
-    else:
+    else:                                                   #Test
         proj_path = join(seq_path_out, 'proj')
         os.makedirs(proj_path) if not exists(proj_path) else None
         scan_list = np.sort(os.listdir(pc_path))
