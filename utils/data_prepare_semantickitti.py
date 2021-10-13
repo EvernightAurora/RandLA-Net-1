@@ -3,6 +3,7 @@ import numpy as np
 from os.path import join, exists, dirname, abspath
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
+from stddef import Data_Prepare_Load_Path, Data_Prepare_Save_Path, Validation_Data_Name
 # todo: al eva
 BASE_DIR = dirname(abspath(__file__))
 ROOT_DIR = dirname(BASE_DIR)
@@ -18,8 +19,9 @@ remap_lut = np.zeros((max_key + 100), dtype=np.int32) - 1
 remap_lut[list(remap_dict.keys())] = list(remap_dict.values())
 
 grid_size = 0.06
-dataset_path = r'/home/lur/桌面/sequences'
-output_path = r'/home/lur/桌面/sequences' + '_' + str(grid_size)
+
+dataset_path = Data_Prepare_Load_Path
+output_path = Data_Prepare_Save_Path
 Counter = 0
 # seq_list = np.sort(["00","01","02","03","04","05","06","07","08"])
 seq_list = np.sort(os.listdir(dataset_path))
@@ -39,14 +41,14 @@ for seq_id in seq_list:
     os.makedirs(label_path_out) if not exists(label_path_out) else None
     scan_list = np.sort(os.listdir(pc_path))
 
-    for scan_id in scan_list:
-        print(scan_id)
+    for scan_id in tqdm(scan_list):
+        # print(scan_id)
         points = DP.load_pc_kitti(join(pc_path, scan_id))
         labels = DP.load_label_kitti(join(label_path, str(scan_id[:-4]) + '.label'), remap_lut)
         try:
             bc = np.bincount(labels)
             if bc[1] or bc[2]:
-                print("have person and bicyclist, skip")
+                # print("have person and bicyclist, skip")
                 continue
         except:
             print("Out of Dict")
@@ -59,11 +61,7 @@ for seq_id in seq_list:
         with open(KDTree_save, 'wb') as f:
             pickle.dump(search_tree, f)
         Counter += 1
-with open(join(output_path, 'Counter.txt'), 'wt') as f:
-    f.write(str(Counter))
-print("Finished " + str(Counter))
-''' 
-       if seq_id == '08':                                   #Val
+        if seq_id == Validation_Data_Name:                              # Val
             proj_path = join(seq_path_out, 'proj')
             os.makedirs(proj_path) if not exists(proj_path) else None
             proj_inds = np.squeeze(search_tree.query(points, return_distance=False))
@@ -71,6 +69,11 @@ print("Finished " + str(Counter))
             proj_save = join(proj_path, str(scan_id[:-4]) + '_proj.pkl')
             with open(proj_save, 'wb') as f:
                 pickle.dump([proj_inds], f)
+with open(join(output_path, 'Counter.txt'), 'wt') as f:
+    f.write(str(Counter))
+print("Finished " + str(Counter))
+''' 
+       
         
     else:                                                   #Test
         proj_path = join(seq_path_out, 'proj')

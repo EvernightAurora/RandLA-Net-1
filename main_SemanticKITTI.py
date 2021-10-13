@@ -5,7 +5,7 @@ from os.path import join
 from RandLANet import Network
 from tester_SemanticKITTI import ModelTester
 import tensorflow as tf
-
+from stddef import Data_Load_Path
 
 import numpy as np
 import os, argparse, pickle
@@ -18,7 +18,7 @@ if tf.__version__[0] == '2':
 class SemanticKITTI:
     def __init__(self, test_id):
         self.name = 'SemanticKITTI'
-        self.dataset_path = '/data/semantic_kitti/dataset/sequences_0.12'
+        self.dataset_path = Data_Load_Path
         self.label_to_names = {0: 'unlabeled',
                                1: 'untrained person',
                                2: 'untrained cyclist',

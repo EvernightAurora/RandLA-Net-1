@@ -4,6 +4,7 @@ import numpy as np
 # import colorsys 		#I dont need to Plot at least now
 import os, sys
 import pandas as pd
+from stddef import Validation_Data_Name
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -140,13 +141,13 @@ class DataProcessing:
         for seq_id in seq_list:
             seq_path = join(dataset_path, seq_id)
             pc_path = join(seq_path, 'velodyne')
-            if seq_id == '03':
+            if seq_id == Validation_Data_Name:
                 val_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
                 if seq_id == test_scan_num:
                     test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
             elif int(seq_id) >= 11 and seq_id == test_scan_num:
                 test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-            elif seq_id in ['00', '01', '02', '04', '05']:
+            elif seq_id in ['00', '01', '02', '03', '04', '05', '06', '07', '08']
                 train_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
 
         train_file_list = np.concatenate(train_file_list, axis=0)
