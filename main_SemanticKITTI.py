@@ -3,7 +3,7 @@ from helper_tool import ConfigSemanticKITTI as cfg
 # from helper_tool import Plot
 from os.path import join
 from RandLANet import Network
-from tester_SemanticKITTI import ModelTester
+# from tester_SemanticKITTI import ModelTester # no test now
 import tensorflow as tf
 from stddef import Data_Load_Path
 
@@ -179,8 +179,8 @@ class SemanticKITTI:
         self.batch_test_data = self.batch_test_data.prefetch(cfg.val_batch_size)
 
         iter = tf.data.Iterator.from_structure(
-            tf.data.get_output_types(self.batch_train_data),
-            tf.data.get_output_shapes(self.batch_train_data))
+            self.batch_train_data.output_types,
+            self.batch_train_data.output_shapes)
         self.flat_inputs = iter.get_next()
         self.train_init_op = iter.make_initializer(self.batch_train_data)
         self.val_init_op = iter.make_initializer(self.batch_val_data)

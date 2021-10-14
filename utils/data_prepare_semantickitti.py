@@ -24,7 +24,9 @@ dataset_path = Data_Prepare_Load_Path
 output_path = Data_Prepare_Save_Path
 Counter = 0
 # seq_list = np.sort(["00","01","02","03","04","05","06","07","08"])
-seq_list = np.sort(os.listdir(dataset_path))
+
+BinSum = np.array([0]*12, dtype=np.int32)
+seq_list = np.sort(os.listdir(datasets_path))
 for seq_id in seq_list:
     print('sequence' + seq_id + ' start')
     seq_path = join(dataset_path, seq_id)
@@ -50,9 +52,9 @@ for seq_id in seq_list:
             if bc[1] or bc[2]:
                 # print("have person and bicyclist, skip")
                 continue
+            BinSum += bc
         except:
             print("Out of Dict")
-
         sub_points, sub_labels = DP.grid_sub_sampling(points, labels=labels, grid_size=grid_size)
         search_tree = KDTree(sub_points)
         KDTree_save = join(KDTree_path_out, str(scan_id[:-4]) + '.pkl')
@@ -71,6 +73,8 @@ for seq_id in seq_list:
                 pickle.dump([proj_inds], f)
 with open(join(output_path, 'Counter.txt'), 'wt') as f:
     f.write(str(Counter))
+with open(join(output_path, 'ClassCount.txt'), 'wt') as f:
+    f.write(repr(BinSum))
 print("Finished " + str(Counter))
 ''' 
        

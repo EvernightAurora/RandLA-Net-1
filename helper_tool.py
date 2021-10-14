@@ -4,7 +4,7 @@ import numpy as np
 # import colorsys 		#I dont need to Plot at least now
 import os, sys
 import pandas as pd
-from stddef import Validation_Data_Name
+from stddef import Validation_Data_Name, Test_Data_Name_Set, Class_Count
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -145,9 +145,9 @@ class DataProcessing:
                 val_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
                 if seq_id == test_scan_num:
                     test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-            elif int(seq_id) >= 11 and seq_id == test_scan_num:
+            elif seq_id in Test_Data_Name_Set:
                 test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-            elif seq_id in ['00', '01', '02', '03', '04', '05', '06', '07', '08']
+            elif seq_id in ['00', '01', '02', '03', '04', '05', '06', '07', '08']:
                 train_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
 
         train_file_list = np.concatenate(train_file_list, axis=0)
@@ -255,9 +255,7 @@ class DataProcessing:
             num_per_class = np.array([5181602, 5012952, 6830086, 1311528, 10476365, 946982, 334860, 269353],
                                      dtype=np.int32)
         elif dataset_name == 'SemanticKITTI':
-            num_per_class = np.array([1877342, 379542, 564400, 9098556, 1527493,
-                                      57638164, 340658, 161566, 179010, 671141, 103198,
-                                      36796319, 118820, 2480862,  8663693, 25104745])
+            num_per_class = np.array(Class_Count)
         weight = num_per_class / float(sum(num_per_class))
         ce_label_weight = 1 / (weight + 0.02)
         return np.expand_dims(ce_label_weight, axis=0)

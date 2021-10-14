@@ -5,7 +5,10 @@ Date: November 2016
 """
 
 import numpy as np
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
+if tf.__version__[0] == '2':
+    del tf
+    import tensorflow.compat.v1 as tf
 
 
 def _variable_on_cpu(name, shape, initializer, use_fp16=False):
