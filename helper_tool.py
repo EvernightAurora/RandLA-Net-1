@@ -147,7 +147,7 @@ class DataProcessing:
                     test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
             elif seq_id in Test_Data_Name_Set:
                 test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-            elif seq_id in ['00', '01', '02', '03', '04', '05', '06', '07', '08']:
+            elif seq_id in ['04', '01', '02', '03', '00', '05', '06', '07', '08']:
                 train_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
 
         train_file_list = np.concatenate(train_file_list, axis=0)

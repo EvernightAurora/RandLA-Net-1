@@ -247,11 +247,11 @@ class Network:
                 break
 
         iou_list = []
-        log_out('Modified: now IOU and mIOU does not care empty classes(which IOU is nan)')
+        log_out('Modified: now IOU and mIOU does not care empty classes(which IOU is nan)', self.Log_file)
         for n in range(0, self.config.num_classes, 1):
             iou = true_positive_classes[n] / float(gt_classes[n] + positive_classes[n] - true_positive_classes[n])
             iou_list.append(iou)
-        real_iou_list = iou_list[np.where(iou_list == iou_list)]
+        real_iou_list = np.array(iou_list)[np.where(np.array(iou_list) == np.array(iou_list))]
         mean_iou = sum(real_iou_list) / float(len(real_iou_list))
 
         log_out('eval accuracy: {}'.format(val_total_correct / float(val_total_seen)), self.Log_file)
