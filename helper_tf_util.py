@@ -557,7 +557,8 @@ def dropout(inputs,
             is_training,
             scope,
             keep_prob=0.5,
-            noise_shape=None):
+            noise_shape=None,
+            stable_dropout = False):
     """ Dropout layer.
 
     Args:
@@ -571,7 +572,7 @@ def dropout(inputs,
       tensor variable
     """
     with tf.variable_scope(scope) as sc:
-        outputs = tf.cond(is_training,
+        outputs = tf.cond(tf.logical_or(is_training, stable_dropout),
                           lambda: tf.nn.dropout(inputs, keep_prob, noise_shape),
                           lambda: inputs)
         return outputs

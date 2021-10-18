@@ -11,3 +11,4 @@ utils/nearest_neighbors/lib/python/KNN_NanoFLANN-0.0.0-py3.5.egg-info
 log_train_SemanticKITTI.txt
 Clean.sh
 utils/nearest_neighbors/lib/
+*log_train_SemanticKITTI.txt

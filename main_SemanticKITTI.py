@@ -90,14 +90,15 @@ class SemanticKITTI:
                     self.min_possibility[cloud_ind] = np.min(self.possibility[cloud_ind])
 
                 if True:
-                    yield (selected_pc.astype(np.float32),              # int in a area
+                    yield (selected_pc.astype(np.float32),              # point in a area
                            selected_labels.astype(np.int32),            # Label of Point
                            selected_idx.astype(np.int32),               # the idx of choose points
-                           np.array([cloud_ind], dtype=np.int32))       # file number
+                           np.array([cloud_ind], dtype=np.int32),       # file number, not name
+                           np.array([path_list[cloud_ind]], dtype=np.str))                        # input file path
 
         gen_func = spatially_regular_gen
-        gen_types = (tf.float32, tf.int32, tf.int32, tf.int32)
-        gen_shapes = ([None, 3], [None], [None], [None])
+        gen_types = (tf.float32, tf.int32, tf.int32, tf.int32, tf.string)
+        gen_shapes = ([None, 3], [None], [None], [None], [None])
 
         return gen_func, gen_types, gen_shapes
 
@@ -128,7 +129,7 @@ class SemanticKITTI:
     @staticmethod
     def get_tf_mapping2():
 
-        def tf_map(batch_pc, batch_label, batch_pc_idx, batch_cloud_idx):
+        def tf_map(batch_pc, batch_label, batch_pc_idx, batch_cloud_idx, batch_file_name):
             features = batch_pc
             input_points = []
             input_neighbors = []
@@ -147,7 +148,7 @@ class SemanticKITTI:
                 batch_pc = sub_points
 
             input_list = input_points + input_neighbors + input_pools + input_up_samples
-            input_list += [features, batch_label, batch_pc_idx, batch_cloud_idx]
+            input_list += [features, batch_label, batch_pc_idx, batch_cloud_idx, batch_file_name]
 
             return input_list
 
@@ -193,22 +194,34 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='train', help='options: train, test, vis')
     parser.add_argument('--test_area', type=str, default='03', help='not so useful for POSS')
     parser.add_argument('--model_path', type=str, default='None', help='pretrained model path')
+
+    parser.add_argument('--type', type=int, default=-1, help='run type [0:normal, 1: stable dropout, TODO: 2...3...]')
     FLAGS = parser.parse_args()
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ['CUDA_VISIBLE_DEVICES'] = str(FLAGS.gpu)
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     Mode = FLAGS.mode
+    Type = FLAGS.type
+
+    if Type < 0 or Type > 3:
+        if Type == -1:
+            test_area = FLAGS.test_area
+            dataset = SemanticKITTI(test_area)
+            dataset.init_input_pipeline()
+            model = Network(dataset, cfg, Type)
+            model.test(dataset)
+        exit()
 
     test_area = FLAGS.test_area
     dataset = SemanticKITTI(test_area)
     dataset.init_input_pipeline()
 
     if Mode == 'train':
-        model = Network(dataset, cfg)
+        model = Network(dataset, cfg, Type)
         model.train(dataset)
     elif Mode == 'test':
         cfg.saving = False
-        model = Network(dataset, cfg)
+        model = Network(dataset, cfg, Type)
         if FLAGS.model_path != 'None':
             chosen_snap = FLAGS.model_path
         else:

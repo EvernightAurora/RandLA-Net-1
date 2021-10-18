@@ -25,13 +25,16 @@ def log_out(out_str, f_out):
 
 
 class Network:
-    def __init__(self, dataset, config):
+    def __init__(self, dataset, config, Type):
         flat_inputs = dataset.flat_inputs
         self.config = config
+        self.Type = Type
+        self.TypeName = ['Std', 'SD', 'ODIN', 'MD']
         # Path of the result folder
         if self.config.saving:
             if self.config.saving_path is None:
-                self.saving_path = time.strftime('results/Log_%Y-%m-%d_%H-%M-%S', time.gmtime())
+                self.saving_path = time.strftime('results/[{}:{}]'.format(self.Type, self.TypeName[self.Type])
+                                                 + '/log_%Y-%m-%d_%H-%M-%S', time.gmtime())
             else:
                 self.saving_path = self.config.saving_path
             makedirs(self.saving_path) if not exists(self.saving_path) else None
@@ -48,6 +51,8 @@ class Network:
             self.inputs['input_inds'] = flat_inputs[4 * num_layers + 2]
             self.inputs['cloud_inds'] = flat_inputs[4 * num_layers + 3]
 
+            self.inputs['file_path'] = flat_inputs[4 * num_layers + 4]
+
             self.labels = self.inputs['labels']
             self.is_training = tf.placeholder(tf.bool, shape=())
             self.training_step = 1
@@ -56,11 +61,19 @@ class Network:
             self.accuracy = 0
             self.mIou_list = [0]
             self.class_weights = DP.get_class_weights(dataset.name)
-            self.Log_file = open('log_train_' + dataset.name + '.txt', 'a')
+            self.Log_file = open('[{}:{}]'.format(self.Type, self.TypeName[self.Type])
+                                 + 'log_train_' + dataset.name + '.txt', 'a')
+
+            # Added for evaluate
+            self.stable_dropout = tf.placeholder(tf.bool, shape=())
+            self.ODIN = tf.placeholder(tf.bool, shape=())
+            self.MD = tf.placeholder(tf.bool, shape=())
 
         with tf.variable_scope('layers'):
-            self.logits = self.inference(self.inputs, self.is_training)
+            self.logits = self.inference(self.inputs, self.is_training) # shape: (?,?,11)
 
+        self.raw_output = self.logits
+        self.raw_label = self.labels                # for odin and md
         #####################################################################
         # Ignore the invalid point (unlabeled) when calculating the loss #
         #####################################################################
@@ -148,11 +161,24 @@ class Network:
 
         f_layer_fc1 = helper_tf_util.conv2d(f_decoder_list[-1], 64, [1, 1], 'fc1', [1, 1], 'VALID', True, is_training)
         f_layer_fc2 = helper_tf_util.conv2d(f_layer_fc1, 32, [1, 1], 'fc2', [1, 1], 'VALID', True, is_training)
-        f_layer_drop = helper_tf_util.dropout(f_layer_fc2, keep_prob=0.5, is_training=is_training, scope='dp1')
+        f_layer_drop = helper_tf_util.dropout(f_layer_fc2, keep_prob=0.5, is_training=is_training,
+                                              scope='dp1', stable_dropout=self.stable_dropout)
         f_layer_fc3 = helper_tf_util.conv2d(f_layer_drop, self.config.num_classes, [1, 1], 'fc', [1, 1], 'VALID', False,
                                             is_training, activation_fn=None)
         f_out = tf.squeeze(f_layer_fc3, [2])
         return f_out
+
+    def make_sess_dict(self, is_training, Type):
+        ret = {self.is_training: is_training,
+               self.stable_dropout: False,
+               self.ODIN: False,
+               self.MD: False}
+        if Type == 1:
+            ret[self.stable_dropout] = True
+        elif Type == 2:
+            ret[self.ODIN] = True
+        elif Type == 3:
+            ret[self.MD] = True
 
     def train(self, dataset):
         log_out('****EPOCH {}****'.format(self.training_epoch), self.Log_file)
@@ -167,7 +193,8 @@ class Network:
                        self.logits,
                        self.labels,
                        self.accuracy]
-                _, _, summary, l_out, probs, labels, acc = self.sess.run(ops, {self.is_training: True})
+                _, _, summary, l_out, probs, labels, acc = self.sess.run(ops,
+                                                                         self.make_sess_dict(True, self.Type))
                 self.train_writer.add_summary(summary, self.training_step)
                 t_end = time.time()
                 if self.training_step % 50 == 0:
@@ -223,7 +250,8 @@ class Network:
         for _ in tqdm(range(self.config.val_steps)):
             try:
                 ops = (self.prob_logits, self.labels, self.accuracy)
-                stacked_prob, labels, acc = self.sess.run(ops, {self.is_training: False})
+                stacked_prob, labels, acc = self.sess.run(ops,
+                                                          self.make_sess_dict(False, self.Type))
                 pred = np.argmax(stacked_prob, 1)
                 if not self.config.ignored_label_inds:
                     pred_valid = pred
@@ -265,6 +293,7 @@ class Network:
         log_out('-' * len(s), self.Log_file)
         log_out(s, self.Log_file)
         log_out('-' * len(s) + '\n', self.Log_file)
+        tf.summary.scalar('mIOU', mean_iou)
         return mean_iou
 
     def get_loss(self, logits, labels, pre_cal_weights):
@@ -365,3 +394,15 @@ class Network:
         f_agg = tf.reshape(f_agg, [batch_size, num_points, 1, d])
         f_agg = helper_tf_util.conv2d(f_agg, d_out, [1, 1], name + 'mlp', [1, 1], 'VALID', True, is_training)
         return f_agg
+
+    def test(self, dataset):
+        self.sess.run(dataset.train_init_op)
+        i = 0
+        while True:
+            try:
+                i += 1
+                print("#########{}".format(i))
+                inf = self.sess.run(self.inputs['file_path'], self.make_sess_dict(False, 1))
+                print(inf)
+            except tf.errors.OutOfRangeError:
+                break
