@@ -6,6 +6,7 @@ from RandLANet import Network
 # from tester_SemanticKITTI import ModelTester # no test now
 import tensorflow as tf
 from stddef import Data_Load_Path
+from tester_StableDropout import ModelTester as ModelTester_SD
 
 import numpy as np
 import os, argparse, pickle
@@ -154,45 +155,53 @@ class SemanticKITTI:
 
         return tf_map
 
-    def init_input_pipeline(self):
+    def init_input_pipeline(self, test_only=False):
         print('Initiating input pipelines')
         cfg.ignored_label_inds = [self.label_to_idx[ign_label] for ign_label in self.ignored_labels]
         gen_function, gen_types, gen_shapes = self.get_batch_gen('training')
         gen_function_val, _, _ = self.get_batch_gen('validation')
         gen_function_test, _, _ = self.get_batch_gen('test')
 
-        self.train_data = tf.data.Dataset.from_generator(gen_function, gen_types, gen_shapes)
-        self.val_data = tf.data.Dataset.from_generator(gen_function_val, gen_types, gen_shapes)
-        self.test_data = tf.data.Dataset.from_generator(gen_function_test, gen_types, gen_shapes)
-
-        self.batch_train_data = self.train_data.batch(cfg.batch_size)
-        self.batch_val_data = self.val_data.batch(cfg.val_batch_size)
-        self.batch_test_data = self.test_data.batch(cfg.val_batch_size)
-
         map_func = self.get_tf_mapping2()
+        if not test_only:
+            self.train_data = tf.data.Dataset.from_generator(gen_function, gen_types, gen_shapes)
+            self.val_data = tf.data.Dataset.from_generator(gen_function_val, gen_types, gen_shapes)
 
-        self.batch_train_data = self.batch_train_data.map(map_func=map_func)
-        self.batch_val_data = self.batch_val_data.map(map_func=map_func)
-        self.batch_test_data = self.batch_test_data.map(map_func=map_func)
+            self.batch_train_data = self.train_data.batch(cfg.batch_size)
+            self.batch_val_data = self.val_data.batch(cfg.val_batch_size)
 
-        self.batch_train_data = self.batch_train_data.prefetch(cfg.batch_size)
-        self.batch_val_data = self.batch_val_data.prefetch(cfg.val_batch_size)
-        self.batch_test_data = self.batch_test_data.prefetch(cfg.val_batch_size)
+            self.batch_train_data = self.batch_train_data.map(map_func=map_func)
+            self.batch_val_data = self.batch_val_data.map(map_func=map_func)
 
-        iter = tf.data.Iterator.from_structure(
-            self.batch_train_data.output_types,
-            self.batch_train_data.output_shapes)
-        self.flat_inputs = iter.get_next()
-        self.train_init_op = iter.make_initializer(self.batch_train_data)
-        self.val_init_op = iter.make_initializer(self.batch_val_data)
-        self.test_init_op = iter.make_initializer(self.batch_test_data)
+            self.batch_train_data = self.batch_train_data.prefetch(cfg.batch_size)
+            self.batch_val_data = self.batch_val_data.prefetch(cfg.val_batch_size)
+
+            iter = tf.data.Iterator.from_structure(
+                self.batch_train_data.output_types,
+                self.batch_train_data.output_shapes)
+
+            self.flat_inputs = iter.get_next()
+            self.train_init_op = iter.make_initializer(self.batch_train_data)
+            self.val_init_op = iter.make_initializer(self.batch_val_data)
+
+        else:
+            self.test_data = tf.data.Dataset.from_generator(gen_function_test, gen_types, gen_shapes)
+            self.batch_test_data = self.test_data.batch(cfg.val_batch_size)
+            self.batch_test_data = self.batch_test_data.map(map_func=map_func)
+            self.batch_test_data = self.batch_test_data.prefetch(cfg.val_batch_size)
+
+            iter = tf.data.Iterator.from_structure(
+                self.batch_test_data.output_types,
+                self.batch_test_data.output_shapes)
+            self.flat_inputs = iter.get_next()
+            self.test_init_op = iter.make_initializer(self.batch_test_data)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=int, default=0, help='the number of GPUs to use [default: 0]')
     parser.add_argument('--mode', type=str, default='train', help='options: train, test, vis')
-    parser.add_argument('--test_area', type=str, default='03', help='not so useful for POSS')
+    parser.add_argument('--test_area', type=str, default='-1', help='not so useful for POSS')
     parser.add_argument('--model_path', type=str, default='None', help='pretrained model path')
 
     parser.add_argument('--type', type=int, default=-1, help='run type [0:normal, 1: stable dropout, TODO: 2...3...]')
@@ -214,26 +223,30 @@ if __name__ == '__main__':
 
     test_area = FLAGS.test_area
     dataset = SemanticKITTI(test_area)
-    dataset.init_input_pipeline()
+
 
     if Mode == 'train':
+        dataset.init_input_pipeline(test_only=False)
         model = Network(dataset, cfg, Type)
         model.train(dataset)
     elif Mode == 'test':
         cfg.saving = False
         model = Network(dataset, cfg, Type)
-        if FLAGS.model_path != 'None':
-            chosen_snap = FLAGS.model_path
-        else:
-            chosen_snapshot = -1
-            logs = np.sort([os.path.join('results', f) for f in os.listdir('results') if f.startswith('Log')])
-            chosen_folder = logs[-1]
-            snap_path = join(chosen_folder, 'snapshots')
-            snap_steps = [int(f[:-5].split('-')[-1]) for f in os.listdir(snap_path) if f[-5:] == '.meta']
-            chosen_step = np.sort(snap_steps)[-1]
-            chosen_snap = os.path.join(snap_path, 'snap-{:d}'.format(chosen_step))
-        tester = ModelTester(model, dataset, restore_snap=None)
-        tester.test(model, dataset)
+        if Type == 1:
+            if FLAGS.model_path != 'None':
+                chosen_snap = FLAGS.model_path
+            else:
+                rel = 'results/[{}]'.format(Type)
+                chosen_snapshot = -1
+                logs = np.sort([os.path.join(rel, f) for f in os.listdir(rel) if f.startswith('Log')])
+                chosen_folder = logs[-1]
+                snap_path = join(chosen_folder, 'snapshots')
+                snap_steps = [int(f[:-5].split('-')[-1]) for f in os.listdir(snap_path) if f[-5:] == '.meta']
+                chosen_step = np.sort(snap_steps)[-1]
+                chosen_snap = os.path.join(snap_path, 'snap-{:d}'.format(chosen_step))
+            input('choose snap is ' + chosen_snap)
+            tester = ModelTester_SD(model, dataset, restore_snap=chosen_snap)
+            tester.test(model, dataset)
     else:
         ##################
         # Visualize data #

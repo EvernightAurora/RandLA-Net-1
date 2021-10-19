@@ -33,7 +33,7 @@ class Network:
         # Path of the result folder
         if self.config.saving:
             if self.config.saving_path is None:
-                self.saving_path = time.strftime('results/[{}:{}]'.format(self.Type, self.TypeName[self.Type])
+                self.saving_path = time.strftime('results/[{}]'.format(self.Type)
                                                  + '/log_%Y-%m-%d_%H-%M-%S', time.gmtime())
             else:
                 self.saving_path = self.config.saving_path
@@ -66,8 +66,6 @@ class Network:
 
             # Added for evaluate
             self.stable_dropout = tf.placeholder(tf.bool, shape=())
-            self.ODIN = tf.placeholder(tf.bool, shape=())
-            self.MD = tf.placeholder(tf.bool, shape=())
 
         with tf.variable_scope('layers'):
             self.logits = self.inference(self.inputs, self.is_training) # shape: (?,?,11)
@@ -90,7 +88,6 @@ class Network:
             valid_idx = tf.squeeze(tf.where(tf.logical_not(ignored_bool)))
             valid_logits = tf.gather(self.logits, valid_idx, axis=0)
             valid_labels_init = tf.gather(self.labels, valid_idx, axis=0)
-
             # Reduce label values in the range of logit shape
             reducing_list = tf.range(self.config.num_classes, dtype=tf.int32)
             inserted_value = tf.zeros((1,), dtype=tf.int32)
@@ -170,15 +167,10 @@ class Network:
 
     def make_sess_dict(self, is_training, Type):
         ret = {self.is_training: is_training,
-               self.stable_dropout: False,
-               self.ODIN: False,
-               self.MD: False}
+               self.stable_dropout: False}
         if Type == 1:
             ret[self.stable_dropout] = True
-        elif Type == 2:
-            ret[self.ODIN] = True
-        elif Type == 3:
-            ret[self.MD] = True
+        return ret
 
     def train(self, dataset):
         log_out('****EPOCH {}****'.format(self.training_epoch), self.Log_file)
@@ -402,7 +394,7 @@ class Network:
             try:
                 i += 1
                 print("#########{}".format(i))
-                inf = self.sess.run(self.inputs['file_path'], self.make_sess_dict(False, 1))
-                print(inf)
+                inf1, inf2 = self.sess.run([self.Test1, self.Test2], self.make_sess_dict(False, 1))
+                print(inf1.shape)
             except tf.errors.OutOfRangeError:
                 break

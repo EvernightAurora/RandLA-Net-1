@@ -23,10 +23,11 @@ grid_size = 0.06
 dataset_path = Data_Prepare_Load_Path
 output_path = Data_Prepare_Save_Path
 Counter = 0
-# seq_list = np.sort(["00","01","02","03","04","05","06","07","08"])
+# seq_list = np.sort(["00", "01", "02", "03", "04", "05", "06", "07", "08"])
+test_list = np.sort(['51', '52'])
 
 BinSum = np.array([0]*12, dtype=np.int32)
-seq_list = np.sort(os.listdir(datasets_path))
+seq_list = np.sort(os.listdir(dataset_path))
 for seq_id in seq_list:
     print('sequence' + seq_id + ' start')
     seq_path = join(dataset_path, seq_id)
@@ -37,40 +38,61 @@ for seq_id in seq_list:
     os.makedirs(seq_path_out) if not exists(seq_path_out) else None
     os.makedirs(pc_path_out) if not exists(pc_path_out) else None
     os.makedirs(KDTree_path_out) if not exists(KDTree_path_out) else None
-    # if int(seq_id) < 11:
-    label_path = join(seq_path, 'labels')
-    label_path_out = join(seq_path_out, 'labels')
-    os.makedirs(label_path_out) if not exists(label_path_out) else None
-    scan_list = np.sort(os.listdir(pc_path))
-
-    for scan_id in tqdm(scan_list):
-        # print(scan_id)
-        points = DP.load_pc_kitti(join(pc_path, scan_id))
-        labels = DP.load_label_kitti(join(label_path, str(scan_id[:-4]) + '.label'), remap_lut)
-        try:
-            bc = np.bincount(labels)
-            if bc[1] or bc[2]:
-                # print("have person and bicyclist, skip")
-                continue
-            BinSum += bc
-        except:
-            print("Out of Dict")
-        sub_points, sub_labels = DP.grid_sub_sampling(points, labels=labels, grid_size=grid_size)
-        search_tree = KDTree(sub_points)
-        KDTree_save = join(KDTree_path_out, str(scan_id[:-4]) + '.pkl')
-        np.save(join(pc_path_out, scan_id)[:-4], sub_points)
-        np.save(join(label_path_out, scan_id)[:-4], sub_labels)
-        with open(KDTree_save, 'wb') as f:
-            pickle.dump(search_tree, f)
-        Counter += 1
-        if seq_id == Validation_Data_Name:                              # Val
-            proj_path = join(seq_path_out, 'proj')
-            os.makedirs(proj_path) if not exists(proj_path) else None
+    if seq_id in test_list:
+        print(" is test")
+        proj_path = join(seq_path_out, 'proj')
+        os.makedirs(proj_path) if not exists(proj_path) else None
+        scan_list = np.sort(os.listdir(pc_path))
+        for scan_id in scan_list:
+            print(scan_id)
+            points = DP.load_pc_kitti(join(pc_path, scan_id))
+            sub_points = DP.grid_sub_sampling(points, grid_size=0.06)
+            search_tree = KDTree(sub_points)
             proj_inds = np.squeeze(search_tree.query(points, return_distance=False))
             proj_inds = proj_inds.astype(np.int32)
+            KDTree_save = join(KDTree_path_out, str(scan_id[:-4]) + '.pkl')
             proj_save = join(proj_path, str(scan_id[:-4]) + '_proj.pkl')
+            np.save(join(pc_path_out, scan_id)[:-4], sub_points)
+            with open(KDTree_save, 'wb') as f:
+                pickle.dump(search_tree, f)
             with open(proj_save, 'wb') as f:
                 pickle.dump([proj_inds], f)
+    else:
+        print('is val and train')
+        # if int(seq_id) < 11:
+        label_path = join(seq_path, 'labels')
+        label_path_out = join(seq_path_out, 'labels')
+        os.makedirs(label_path_out) if not exists(label_path_out) else None
+        scan_list = np.sort(os.listdir(pc_path))
+
+        for scan_id in tqdm(scan_list):
+            # print(scan_id)
+            points = DP.load_pc_kitti(join(pc_path, scan_id))
+            labels = DP.load_label_kitti(join(label_path, str(scan_id[:-4]) + '.label'), remap_lut)
+            try:
+                bc = np.bincount(labels)
+                if bc[1] or bc[2]:
+                    # print("have person and bicyclist, skip")
+                    continue
+                BinSum += bc
+            except:
+                print("Out of Dict")
+            sub_points, sub_labels = DP.grid_sub_sampling(points, labels=labels, grid_size=grid_size)
+            search_tree = KDTree(sub_points)
+            KDTree_save = join(KDTree_path_out, str(scan_id[:-4]) + '.pkl')
+            np.save(join(pc_path_out, scan_id)[:-4], sub_points)
+            np.save(join(label_path_out, scan_id)[:-4], sub_labels)
+            with open(KDTree_save, 'wb') as f:
+                pickle.dump(search_tree, f)
+            Counter += 1
+            if True:  # seq_id == Validation_Data_Name:                              # Val
+                proj_path = join(seq_path_out, 'proj')
+                os.makedirs(proj_path) if not exists(proj_path) else None
+                proj_inds = np.squeeze(search_tree.query(points, return_distance=False))
+                proj_inds = proj_inds.astype(np.int32)
+                proj_save = join(proj_path, str(scan_id[:-4]) + '_proj.pkl')
+                with open(proj_save, 'wb') as f:
+                    pickle.dump([proj_inds], f)
 with open(join(output_path, 'Counter.txt'), 'wt') as f:
     f.write(str(Counter))
 with open(join(output_path, 'ClassCount.txt'), 'wt') as f:
