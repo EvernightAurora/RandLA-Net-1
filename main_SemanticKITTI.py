@@ -7,6 +7,7 @@ from RandLANet import Network
 import tensorflow as tf
 from stddef import Data_Load_Path
 from tester_StableDropout import ModelTester as ModelTester_SD
+from tester_OMRaw import ModelTester as ModelTester_OM
 
 import numpy as np
 import os, argparse, pickle
@@ -17,7 +18,7 @@ if tf.__version__[0] == '2':
 
 
 class SemanticKITTI:
-    def __init__(self, test_id):
+    def __init__(self, test_id, ex_test=False):
         self.name = 'SemanticKITTI'
         self.dataset_path = Data_Load_Path
         self.label_to_names = {0: 'unlabeled',
@@ -42,7 +43,7 @@ class SemanticKITTI:
         self.seq_list = np.sort(os.listdir(self.dataset_path))
         self.test_scan_number = str(test_id)
         self.train_list, self.val_list, self.test_list = DP.get_file_list(self.dataset_path,
-                                                                          self.test_scan_number)
+                                                                          self.test_scan_number, ex_test=ex_test)
         self.train_list = DP.shuffle_list(self.train_list)
         self.val_list = DP.shuffle_list(self.val_list)
 
@@ -203,7 +204,8 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='train', help='options: train, test, vis')
     parser.add_argument('--test_area', type=str, default='-1', help='not so useful for POSS')
     parser.add_argument('--model_path', type=str, default='None', help='pretrained model path')
-
+    parser.add_argument('--exa', type=int, default=0, help='extra')
+    
     parser.add_argument('--type', type=int, default=-1, help='run type [0:normal, 1: stable dropout, TODO: 2...3...]')
     FLAGS = parser.parse_args()
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -222,17 +224,19 @@ if __name__ == '__main__':
         exit()
 
     test_area = FLAGS.test_area
-    dataset = SemanticKITTI(test_area)
 
 
     if Mode == 'train':
+        dataset = SemanticKITTI(test_area)
         dataset.init_input_pipeline(test_only=False)
         model = Network(dataset, cfg, Type)
         model.train(dataset)
     elif Mode == 'test':
         cfg.saving = False
-        model = Network(dataset, cfg, Type)
         if Type == 1:
+            dataset = SemanticKITTI(test_area)
+            dataset.init_input_pipeline(test_only=True)
+            model = Network(dataset, cfg, Type)
             if FLAGS.model_path != 'None':
                 chosen_snap = FLAGS.model_path
             else:
@@ -244,8 +248,26 @@ if __name__ == '__main__':
                 snap_steps = [int(f[:-5].split('-')[-1]) for f in os.listdir(snap_path) if f[-5:] == '.meta']
                 chosen_step = np.sort(snap_steps)[-1]
                 chosen_snap = os.path.join(snap_path, 'snap-{:d}'.format(chosen_step))
-            input('choose snap is ' + chosen_snap)
-            tester = ModelTester_SD(model, dataset, restore_snap=chosen_snap)
+            print('choose snap is ' + chosen_snap)
+            tester = ModelTester_SD(model, dataset, restore_snap=chosen_snap, num=FLAGS.exa)
+            tester.test(model, dataset)
+        elif Type == 2 or Type == 3:
+            dataset = SemanticKITTI(test_area, ex_test=True)
+            dataset.init_input_pipeline(test_only=True)
+            model = Network(dataset, cfg, Type)
+            if FLAGS.model_path != 'None':
+                chosen_snap = FLAGS.model_path
+            else:
+                rel = 'results/[{}]'.format(Type)
+                chosen_snapshot = -1
+                logs = np.sort([os.path.join(rel, f) for f in os.listdir(rel) if f.startswith('Log')])
+                chosen_folder = logs[-1]
+                snap_path = join(chosen_folder, 'snapshots')
+                snap_steps = [int(f[:-5].split('-')[-1]) for f in os.listdir(snap_path) if f[-5:] == '.meta']
+                chosen_step = np.sort(snap_steps)[-1]
+                chosen_snap = os.path.join(snap_path, 'snap-{:d}'.format(chosen_step))
+            print('Test_OM Raw, choose snap is ' + chosen_snap)
+            tester = ModelTester_OM(model, dataset, restore_snap=chosen_snap)
             tester.test(model, dataset)
     else:
         ##################

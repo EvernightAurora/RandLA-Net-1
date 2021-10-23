@@ -25,7 +25,7 @@ class ConfigSemanticKITTI:
     sub_grid_size = 0.06  # preprocess_parameter
 
     batch_size = 6  # batch_size during training
-    val_batch_size = 20  # batch_size during validation and test
+    val_batch_size = 10  # batch_size during validation and test
     train_steps = 500  # Number of steps per epochs
     val_steps = 100  # Number of validation steps per epoch
 
@@ -132,26 +132,35 @@ class DataProcessing:
         return sem_label.astype(np.int32)
 
     @staticmethod
-    def get_file_list(dataset_path, test_scan_num):
+    def get_file_list(dataset_path, test_scan_num, ex_test=False):
         seq_list = np.sort(os.listdir(dataset_path))
 
         train_file_list = []
         test_file_list = []
         val_file_list = []
+        TestSet = Test_Data_Name_Set
+        if ex_test:
+            print("dp.gfl: extra test data")
+            TestSet = ['00', '01', '02', '03', '04', '05', '06', '07', '08', '50', '51']
+            print('new test set: ' + repr(TestSet))
         for seq_id in seq_list:
             seq_path = join(dataset_path, seq_id)
             pc_path = join(seq_path, 'velodyne')
-            if seq_id == Validation_Data_Name:
-                val_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-                if seq_id == test_scan_num:
-                    test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
-            elif seq_id in Test_Data_Name_Set:
+            if seq_id in TestSet:
                 test_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
+            elif seq_id == Validation_Data_Name:
+                val_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
             elif seq_id in ['04', '01', '02', '03', '00', '05', '06', '07', '08']:
                 train_file_list.append([join(pc_path, f) for f in np.sort(os.listdir(pc_path))])
 
+        if(train_file_list == []):
+            train_file_list = [['Useless T']]
         train_file_list = np.concatenate(train_file_list, axis=0)
+        if(val_file_list == []):
+            val_file_list = [['Useless V']]
         val_file_list = np.concatenate(val_file_list, axis=0)
+        if(test_file_list == []):
+            test_file_list = [['Useless t']]
         test_file_list = np.concatenate(test_file_list, axis=0)
         return train_file_list, val_file_list, test_file_list
 

@@ -558,7 +558,7 @@ def dropout(inputs,
             scope,
             keep_prob=0.5,
             noise_shape=None,
-            stable_dropout = False):
+            stable_dropout=False):
     """ Dropout layer.
 
     Args:

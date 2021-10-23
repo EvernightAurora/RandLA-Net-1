@@ -48,7 +48,7 @@ class ModelTester:
         self.Set = model.make_sess_dict(is_training=False, Type=1)
         my_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         self.saver = tf.train.Saver(my_vars, max_to_keep=100)
-        self.Log_file = open('log_test_' +'SD{}'.format(num) + '.txt', 'a')
+        self.Log_file = open('log_test_' +'OM{}'.format(num) + '.txt', 'a')
 
         # Create a session for running Ops on the Graph.
         on_cpu = False
@@ -79,7 +79,7 @@ class ModelTester:
         self.test_probs_cnt = [np.zeros(shape=[len(l), model.config.num_classes], dtype=np.float32)
                            for l in dataset.possibility]
 
-        test_path = join(Test_Setting_Path, 'Pred_SD','Raw{}'.format(self.Num))
+        test_path = join(Test_Setting_Path, 'Pred_OM','Raw{}')
         makedirs(test_path) if not exists(test_path) else None
         # test_smooth = 0.98
         epoch_ind = 0
@@ -168,6 +168,9 @@ class ModelTester:
                             '''
                             pred = pred.astype(np.uint32)
                             pred.tofile(store_path)
+
+                            tl_path = join(test_path, fid, str(frame) + '.t_label')
+                            labels.tofile(tl_path)
 
             
                             prob_store_path = join(test_path, fid, str(frame) + '.prob')
