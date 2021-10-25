@@ -79,7 +79,7 @@ class ModelTester:
         self.test_probs_cnt = [np.zeros(shape=[len(l), model.config.num_classes], dtype=np.float32)
                            for l in dataset.possibility]
 
-        test_path = join(Test_Setting_Path, 'Pred_OM','Raw{}')
+        test_path = join(Test_Setting_Path, 'Pred_OM')
         makedirs(test_path) if not exists(test_path) else None
         # test_smooth = 0.98
         epoch_ind = 0

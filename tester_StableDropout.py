@@ -29,12 +29,10 @@ remap_lut_val[list(remap_dict_val.keys())] = list(remap_dict_val.values())
 '''
 remap_lut_val = np.arange((200 + 100), dtype=np.int32)
 
-
 def log_out(out_str, f_out):
     f_out.write(out_str + '\n')
     f_out.flush()
     print(out_str)
-
 
 def get_file_id(f):
     a = split(f)
@@ -81,7 +79,7 @@ class ModelTester:
         self.test_probs_cnt = [np.zeros(shape=[len(l), model.config.num_classes], dtype=np.float32)
                            for l in dataset.possibility]
 
-        test_path = join(Test_Setting_Path, 'Pred_SD', 'Raw{}'.format(self.Num))
+        test_path = join(Test_Setting_Path, 'Pred_SD','Raw{}'.format(self.Num))
         makedirs(test_path) if not exists(test_path) else None
         # test_smooth = 0.98
         epoch_ind = 0
